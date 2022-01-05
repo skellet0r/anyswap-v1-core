@@ -1,5 +1,7 @@
 import pytest
 
+pytest_plugins = ["fixtures.accounts"]
+
 
 def pytest_sessionfinish(session, exitstatus):
     if exitstatus == pytest.ExitCode.NO_TESTS_COLLECTED:
