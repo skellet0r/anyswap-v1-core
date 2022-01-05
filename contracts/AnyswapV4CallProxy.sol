@@ -113,6 +113,13 @@ contract AnyCallProxy is Whitelistable {
     event LogAnyExec(address indexed from, address[] to, bytes[] data, bool[] success, bytes[] result,
                      address[] callbacks, uint256[] nonces, uint256 fromChainID, uint256 toChainID);
 
+    struct Context {
+        address sender;
+        uint256 fromChainID;
+    }
+
+    Context public context;
+
     uint private unlocked = 1;
     modifier lock() {
         require(unlocked == 1, 'AnyCall: LOCKED');
@@ -157,6 +164,10 @@ contract AnyCallProxy is Whitelistable {
         bool[] memory success = new bool[](length);
         bytes[] memory results = new bytes[](length);
         uint256 chainID = block.chainid;
+
+        Context memory prevContext = context;
+        context = Context({sender: from, fromChainID: fromChainID});
+
         for (uint256 i = 0; i < length; i++) {
             address _to = to[i];
             if (isInWhitelist[from][chainID][_to]) {
@@ -165,6 +176,7 @@ contract AnyCallProxy is Whitelistable {
                 (success[i], results[i]) = (false, "forbid calling");
             }
         }
+        context = prevContext;
         emit LogAnyExec(from, to, data, success, results, callbacks, nonces, fromChainID, cID);
     }
 }
