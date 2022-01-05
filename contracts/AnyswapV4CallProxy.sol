@@ -51,17 +51,13 @@ abstract contract MPCManageable {
 
 // support limit operations to whitelist
 abstract contract Whitelistable is MPCManageable {
-    mapping(address => mapping(uint256 => mapping(address => bool))) isInWhitelist;
-    mapping(address => mapping(uint256 =>address[])) whitelists;
+    // from => toChainID => to => isAllowed
+    mapping(address => mapping(uint256 => mapping(address => bool))) public isInWhitelist;
+    mapping(address => mapping(uint256 =>address[])) public whitelists;
 
     event LogSetWhitelist(address indexed from, uint256 indexed chainID, address indexed to, bool flag);
 
-    modifier onlyFromWhitelist(address from) {
-        require(isInWhitelist[address(this)][block.chainid][from], "AnyCall: caller is not in whitelist");
-        _;
-    }
-
-    modifier onlyToWhitelist(address from, uint256 chainID, address[] memory to) {
+    modifier onlyWhitelisted(address from, uint256 chainID, address[] memory to) {
         mapping(address => bool) storage map = isInWhitelist[from][chainID];
         for (uint256 i = 0; i < to.length; i++) {
             require(map[to[i]], "AnyCall: to address is not in whitelist");
@@ -69,22 +65,26 @@ abstract contract Whitelistable is MPCManageable {
         _;
     }
 
-    constructor(address _mpc) MPCManageable(_mpc) {
-    }
+    constructor(address _mpc) MPCManageable(_mpc) {}
 
+    /**
+        @notice Query the number of elements in the whitelist of `whitelists[from][chainID]`
+        @param from The initiator of a cross chain interaction
+        @param chainID The target chain's identifier
+        @return uint256 The length of addresses `from` is allowed to call on `chainID`
+    */
     function whitelistLength(address from, uint256 chainID) external view returns (uint256) {
         return whitelists[from][chainID].length;
     }
 
-    function whitelist(uint256 chainID, address to, bool flag) external {
-        this.adminWhitelist(msg.sender, chainID, to, flag);
-    }
-
-    function whitelistCaller(address caller, bool flag) external onlyMPC {
-        this.adminWhitelist(address(this), block.chainid, caller, flag);
-    }
-
-    function adminWhitelist(address from, uint256 chainID, address to, bool flag) external onlyMPC {
+    /**
+        @notice Approve/Revoke a caller's permissions to initiate a cross chain interaction
+        @param from The initiator of a cross chain interaction
+        @param chainID The target chain's identifier
+        @param to The address of the target `from` is being allowed/disallowed to call
+        @param flag Boolean denoting whether permissions is being granted/denied
+    */
+    function whitelist(address from, uint256 chainID, address to, bool flag) external onlyMPC {
         require(isInWhitelist[from][chainID][to] != flag, "nothing change");
         address[] storage list = whitelists[from][chainID];
         if (flag) {
@@ -147,7 +147,7 @@ contract AnyCallProxy is Whitelistable {
         address[] memory callbacks,
         uint256[] memory nonces,
         uint256 toChainID
-    ) external onlyFromWhitelist(msg.sender) onlyToWhitelist(msg.sender, toChainID, to) {
+    ) external onlyWhitelisted(msg.sender, toChainID, to) {
         emit LogAnyCall(msg.sender, to, data, callbacks, nonces, cID, toChainID);
     }
 
