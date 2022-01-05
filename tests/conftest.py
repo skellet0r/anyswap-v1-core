@@ -1,6 +1,6 @@
 import pytest
 
-pytest_plugins = ["fixtures.accounts"]
+pytest_plugins = ["fixtures.accounts", "fixtures.deployments"]
 
 
 def pytest_sessionfinish(session, exitstatus):
