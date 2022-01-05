@@ -19,12 +19,12 @@ abstract contract MPCManageable {
     event LogChangeMPC(
         address indexed oldMPC,
         address indexed newMPC,
-        uint256 indexed effectiveTime);
+        uint256 effectiveTime);
 
     event LogApplyMPC(
         address indexed oldMPC,
         address indexed newMPC,
-        uint256 indexed applyTime);
+        uint256 applyTime);
 
     constructor(address _mpc) {
         require(_mpc != address(0), "MPC: mpc is the zero address");
