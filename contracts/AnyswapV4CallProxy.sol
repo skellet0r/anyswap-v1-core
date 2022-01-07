@@ -51,9 +51,8 @@ abstract contract MPCManageable {
 
 // support limit operations to whitelist
 abstract contract Whitelistable is MPCManageable {
-    // from => toChainID => to => isAllowed
     mapping(address => mapping(uint256 => mapping(address => bool))) public isInWhitelist;
-    mapping(address => mapping(uint256 =>address[])) public whitelists;
+    mapping(address => mapping(uint256 => address[])) public whitelists;
 
     event LogSetWhitelist(address indexed from, uint256 indexed chainID, address indexed to, bool flag);
 
@@ -97,6 +96,7 @@ abstract contract Whitelistable is MPCManageable {
                         list[i] = list[length-1];
                     }
                     list.pop();
+                    break;
                 }
             }
         }
