@@ -148,6 +148,7 @@ contract AnyCallProxy is Whitelistable {
         uint256[] memory nonces,
         uint256 toChainID
     ) external onlyWhitelisted(msg.sender, toChainID, to) {
+        require(toChainID != block.chainid, "AnyCall: FORBID");
         emit LogAnyCall(msg.sender, to, data, callbacks, nonces, cID, toChainID);
     }
 
@@ -160,23 +161,22 @@ contract AnyCallProxy is Whitelistable {
         uint256 fromChainID
     ) external onlyMPC lock {
         require(from != address(this) && from != address(0), "AnyCall: FORBID");
+
         uint256 length = to.length;
         bool[] memory success = new bool[](length);
         bytes[] memory results = new bytes[](length);
-        uint256 chainID = block.chainid;
 
-        Context memory prevContext = context;
         context = Context({sender: from, fromChainID: fromChainID});
 
         for (uint256 i = 0; i < length; i++) {
             address _to = to[i];
-            if (isInWhitelist[from][chainID][_to]) {
+            if (isInWhitelist[from][block.chainid][_to]) {
                 (success[i], results[i]) = _to.call{value:0}(data[i]);
             } else {
                 (success[i], results[i]) = (false, "forbid calling");
             }
         }
-        context = prevContext;
+        context = Context({sender: from, fromChainID: 0});
         emit LogAnyExec(from, to, data, success, results, callbacks, nonces, fromChainID, cID);
     }
 }
