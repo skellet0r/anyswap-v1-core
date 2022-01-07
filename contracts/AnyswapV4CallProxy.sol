@@ -106,8 +106,6 @@ abstract contract Whitelistable is MPCManageable {
 }
 
 contract AnyCallProxy is Whitelistable {
-    uint256 public immutable cID;
-
     event LogAnyCall(address indexed from, address[] to, bytes[] data,
                      address[] callbacks, uint256[] nonces, uint256 fromChainID, uint256 toChainID);
     event LogAnyExec(address indexed from, address[] to, bytes[] data, bool[] success, bytes[] result,
@@ -128,8 +126,12 @@ contract AnyCallProxy is Whitelistable {
         unlocked = 1;
     }
 
-    constructor(address _mpc) Whitelistable(_mpc) {
-        cID = block.chainid;
+    constructor(address _mpc) Whitelistable(_mpc) {}
+
+    // @notice Query the chainID of this contract
+    // @dev Implemented as a view function so it is less expensive. CHAINID < PUSH32
+    function cID() external view returns (uint256) {
+        return block.chainid;
     }
 
     /**
@@ -149,7 +151,7 @@ contract AnyCallProxy is Whitelistable {
         uint256 toChainID
     ) external onlyWhitelisted(msg.sender, toChainID, to) {
         require(toChainID != block.chainid, "AnyCall: FORBID");
-        emit LogAnyCall(msg.sender, to, data, callbacks, nonces, cID, toChainID);
+        emit LogAnyCall(msg.sender, to, data, callbacks, nonces, block.chainid, toChainID);
     }
 
     function anyCall(
@@ -166,6 +168,8 @@ contract AnyCallProxy is Whitelistable {
         bool[] memory success = new bool[](length);
         bytes[] memory results = new bytes[](length);
 
+        // Revisit this in the future
+        // https://eips.ethereum.org/EIPS/eip-1153
         context = Context({sender: from, fromChainID: fromChainID});
 
         for (uint256 i = 0; i < length; i++) {
@@ -177,6 +181,6 @@ contract AnyCallProxy is Whitelistable {
             }
         }
         context = Context({sender: from, fromChainID: 0});
-        emit LogAnyExec(from, to, data, success, results, callbacks, nonces, fromChainID, cID);
+        emit LogAnyExec(from, to, data, success, results, callbacks, nonces, fromChainID, block.chainid);
     }
 }
