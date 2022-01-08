@@ -105,7 +105,39 @@ abstract contract Whitelistable is MPCManageable {
     }
 }
 
-contract AnyCallProxy is Whitelistable {
+abstract contract Billable is Whitelistable {
+    event Fund(address indexed beneficiary, uint256 amount);
+
+    mapping(address => int256) public funds;
+    uint256 public expenses;
+
+    modifier bill(address originator) {
+        uint256 gas = gasleft();
+        _;
+        uint256 cost = (gas - gasleft()) * tx.gasprice;
+        funds[originator] -= int256(cost); // potential insufficient balances
+        expenses += cost;
+    }
+
+    constructor(address _mpc) Whitelistable(_mpc) {}
+
+    function fund(address beneficiary) external payable {
+        funds[beneficiary] += int256(msg.value);
+        emit Fund(beneficiary, msg.value);
+    }
+
+    function refundMPC() external {
+        if (address(this).balance >= expenses) {
+            expenses = 0;
+            mpc.call{value: expenses}("");
+        } else {
+            expenses = expenses - address(this).balance;
+            mpc.call{value: address(this).balance}("");
+        }
+    }
+}
+
+contract AnyCallProxy is Billable {
     event LogAnyCall(address indexed from, address[] to, bytes[] data,
                      address[] callbacks, uint256[] nonces, uint256 fromChainID, uint256 toChainID);
     event LogAnyExec(address indexed from, address[] to, bytes[] data, bool[] success, bytes[] result,
@@ -126,7 +158,7 @@ contract AnyCallProxy is Whitelistable {
         unlocked = 1;
     }
 
-    constructor(address _mpc) Whitelistable(_mpc) {}
+    constructor(address _mpc) Billable(_mpc) {}
 
     // @notice Query the chainID of this contract
     // @dev Implemented as a view function so it is less expensive. CHAINID < PUSH32
@@ -161,15 +193,13 @@ contract AnyCallProxy is Whitelistable {
         address[] memory callbacks,
         uint256[] memory nonces,
         uint256 fromChainID
-    ) external onlyMPC lock {
+    ) external onlyMPC lock bill(from) {
         require(from != address(this) && from != address(0), "AnyCall: FORBID");
 
         uint256 length = to.length;
         bool[] memory success = new bool[](length);
         bytes[] memory results = new bytes[](length);
 
-        // Revisit this in the future
-        // https://eips.ethereum.org/EIPS/eip-1153
         context = Context({sender: from, fromChainID: fromChainID});
 
         for (uint256 i = 0; i < length; i++) {
