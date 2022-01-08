@@ -53,6 +53,7 @@ abstract contract MPCManageable {
 abstract contract Whitelistable is MPCManageable {
     mapping(address => mapping(uint256 => mapping(address => bool))) public isInWhitelist;
     mapping(address => mapping(uint256 => address[])) public whitelists;
+    mapping(address => bool) public isBlacklisted;
 
     event LogSetWhitelist(address indexed from, uint256 indexed chainID, address indexed to, bool flag);
 
@@ -102,6 +103,10 @@ abstract contract Whitelistable is MPCManageable {
         }
         isInWhitelist[from][chainID][to] = flag;
         emit LogSetWhitelist(from, chainID, to, flag);
+    }
+
+    function blacklist(address account, bool flag) external onlyMPC {
+        isBlacklisted[account] = flag;
     }
 }
 
@@ -183,6 +188,7 @@ contract AnyCallProxy is Billable {
         uint256 toChainID
     ) external onlyWhitelisted(msg.sender, toChainID, to) {
         require(toChainID != block.chainid, "AnyCall: FORBID");
+        require(!isBlacklisted[msg.sender]);
         emit LogAnyCall(msg.sender, to, data, callbacks, nonces, block.chainid, toChainID);
     }
 
@@ -195,6 +201,7 @@ contract AnyCallProxy is Billable {
         uint256 fromChainID
     ) external onlyMPC lock bill(from) {
         require(from != address(this) && from != address(0), "AnyCall: FORBID");
+        require(!isBlacklisted[from]);
 
         uint256 length = to.length;
         bool[] memory success = new bool[](length);
