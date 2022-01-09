@@ -132,11 +132,12 @@ abstract contract Billable is Whitelistable {
     }
 
     function refundMPC() external {
-        if (address(this).balance >= expenses) {
+        uint256 amount = expenses;
+        if (address(this).balance >= amount) {
             expenses = 0;
-            mpc.call{value: expenses}("");
+            mpc.call{value: amount}("");
         } else {
-            expenses = expenses - address(this).balance;
+            expenses = amount - address(this).balance;
             mpc.call{value: address(this).balance}("");
         }
     }
