@@ -33,3 +33,4 @@ def test_refund_mpc_partial(alice, anycall):
     prev_balance = alice.balance()
     anycall.refundMPC({"from": alice})
     assert alice.balance() == prev_balance + expense // 2
+    assert anycall.expenses() == expense - (expense // 2)
